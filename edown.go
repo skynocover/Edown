@@ -3,18 +3,20 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"github.com/zserge/lorca"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
-	"net/url"
-	"github.com/zserge/lorca"
 )
 
-var (fname string)
+var (
+	fname string
+)
 
 func main() {
 	ui, err := lorca.New("", "", 520, 320)
@@ -23,10 +25,25 @@ func main() {
 	}
 	defer ui.Close()
 
-	ui.Bind("download", func(URL string) {
+	ui.Bind("download", func(filename string) {
 		ui.Eval(`document.querySelector('.done').innerText = ''`)
-		UI(URL)
-		ui.Eval(`document.querySelector('.done').innerText = '` + URL + ` done'`)
+		//UI(URL)
+		filename = extoe(filename)
+		html := gethtml(filename)
+		fname = getname(html)
+		pages := getpages(html) //找出頁數
+		images := getimages(html) //找出總張數
+
+
+		for i := 0; i < pages; i++ {
+			html = gethtml(filename + "/?p=" + strconv.Itoa(i))
+			picarr := getpics(html)
+			for j := 1; j < len(picarr); j++ {
+				picweb(picarr[j])
+				ui.Eval(`document.querySelector('.done').innerText = '`+ strconv.Itoa(i*40+j)+"/"+ images  + ` done'`)
+			}
+		}
+		ui.Eval(`document.querySelector('.done').innerText = '` + filename + ` done'`)
 	})
 	// Load HTML after Go functions are bound to JS
 	ui.Load("data:text/html," + url.PathEscape(`
@@ -66,6 +83,11 @@ func UI(filename string) {
 //call
 
 //使用網址找出html
+func extoe(website string)(web string){
+	web = strings.Replace(website,"https://exhentai.org","https://e-hentai.org",-1)
+	return
+}
+
 func gethtml(website string) string {
 	res, err := http.Get(website)
 	if err != nil {
@@ -83,6 +105,15 @@ func getURL() string {
 	var URL string
 	fmt.Scanln(&URL)
 	return URL
+}
+
+func getimages(html string) string{
+	html = catch(html , "<div id=\"asm\"><script","<div id=\"gdo\">")
+	html = catch(html , "<p class=\"gpc\">", "</p>")
+	html = catch(html ,"of" , "images")
+	html = strings.ReplaceAll(html ," ", "")
+	//fmt.Println(html)
+	return html
 }
 
 //找出名稱

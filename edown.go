@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"github.com/zserge/lorca"
 	"io"
 	"io/ioutil"
 	"log"
@@ -12,6 +11,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/zserge/lorca"
 )
 
 var (
@@ -27,20 +28,24 @@ func main() {
 
 	ui.Bind("download", func(filename string) {
 		ui.Eval(`document.querySelector('.done').innerText = ''`)
-		//UI(URL)
-		filename = extoe(filename)
-		html := gethtml(filename)
+		filename = extoe(filename) //修改EX的網址變成E
+		html := gethtml(filename)  //取得輸入網頁的html
+
+		//使用html得到本子名稱,頁數,跟圖片總張數
 		fname = getname(html)
-		pages := getpages(html) //找出頁數
-		images := getimages(html) //找出總張數
+		pages := getpages(html)
+		images := getimages(html)
 
-
+		//輪流至每一頁
 		for i := 0; i < pages; i++ {
+			//用每一頁的網址求出每一頁的html並取得當前頁面所有圖片的網址
 			html = gethtml(filename + "/?p=" + strconv.Itoa(i))
 			picarr := getpics(html)
+			//得到所有圖片網址後到每一個圖片內去載圖
 			for j := 1; j < len(picarr); j++ {
-				picweb(picarr[j])
-				ui.Eval(`document.querySelector('.done').innerText = '`+ strconv.Itoa(i*40+j)+"/"+ images  + ` done'`)
+				 go picweb(picarr[j])
+				//顯示當前載到第幾張圖
+				ui.Eval(`document.querySelector('.done').innerText = '` + strconv.Itoa(i*40+j) + "/" + images + ` done'`)
 			}
 		}
 		ui.Eval(`document.querySelector('.done').innerText = '` + filename + ` done'`)
@@ -65,29 +70,10 @@ func main() {
 	`))
 	<-ui.Done()
 }
-func UI(filename string) {
-
-	html := gethtml(filename)
-	fname = getname(html)
-	pages := getpages(html) //找出頁數
-
-	for i := 0; i < pages; i++ {
-		html = gethtml(filename + "/?p=" + strconv.Itoa(i))
-		picarr := getpics(html)
-		for j := 1; j < len(picarr); j++ {
-			picweb(picarr[j])
-		}
-	}
-}
 
 //call
 
 //使用網址找出html
-func extoe(website string)(web string){
-	web = strings.Replace(website,"https://exhentai.org","https://e-hentai.org",-1)
-	return
-}
-
 func gethtml(website string) string {
 	res, err := http.Get(website)
 	if err != nil {
@@ -100,24 +86,20 @@ func gethtml(website string) string {
 	}
 	return string(sitemap)
 }
-func getURL() string {
-	fmt.Println("Please enter URL: ")
-	var URL string
-	fmt.Scanln(&URL)
-	return URL
-}
 
-func getimages(html string) string{
-	html = catch(html , "<div id=\"asm\"><script","<div id=\"gdo\">")
-	html = catch(html , "<p class=\"gpc\">", "</p>")
-	html = catch(html ,"of" , "images")
-	html = strings.ReplaceAll(html ," ", "")
+//將找出圖片有幾張
+func getimages(html string) string {
+	html = catch(html, "<div id=\"asm\"><script", "<div id=\"gdo\">")
+	html = catch(html, "<p class=\"gpc\">", "</p>")
+	html = catch(html, "of", "images")
+	html = strings.ReplaceAll(html, " ", "")
 	//fmt.Println(html)
 	return html
 }
 
-//找出名稱
+//找出名稱並建立資料夾
 func getname(html string) string {
+	fmt.Println(html)
 	name := catch(html, "<div id=\"gd2\">", "<div id=\"gright\">")
 	name1 := catch(name, "<h1 id=\"gn\">", "</h1>")
 	name2 := catch(name, "<h1 id=\"gj\">", "</h1></div>")
@@ -194,15 +176,8 @@ func catch(input, str, end string) string {
 	return catchtml
 }
 
-/*
-//將每一頁的網址找出來
-func pageweb(html string, pages int) {
-	block := catch(html, "<div class=\"gtb\">", "<div id=\"gdo\">")
-	pagearr = strings.Split(block, "<a href=")
-	//pages := getpages(html)
-	for index := 1; index <= pages; index++ {
-		pagearr[index] = catch(pagearr[index], "\"", "\" onclick=")
-		//fmt.Println(pagearr[index])
-	}
+//修改網址,將EX改成E
+func extoe(website string) (web string) {
+	web = strings.Replace(website, "https://exhentai.org", "https://e-hentai.org", -1)
+	return
 }
-*/
